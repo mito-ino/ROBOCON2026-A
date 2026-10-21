@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ROS2 Control Terminal (800x600 Optimized)</title>
+    <!-- rosbridgeクライアント -->
+    <script src="./roslib.min.js"></script>
+    <style>
+        :root {
+            --bg: #090a0f;
+            --surface: #12141c;
+            --border: #232733;
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --success: #34d399;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            width: 770px;
+            height: 570px;
+            margin: 15px auto;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 28px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+            flex-shrink: 0;
+        }
+
+        h2 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        #status {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+        }
+
+        /* 全体レイアウト */
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: calc(100% - 34px);
+            box-sizing: border-box;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            min-height: 0; /* フレックスアイテム内での正しい縮小・スクロールに必須 */
+        }
+
+        .card-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+
+        /* 1段目：スライダーコントロール */
+        .top-section {
+            height: 110px;
+            flex-shrink: 0;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 3px;
+        }
+
+        button {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 7px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background-color: #1a1d28;
+            color: var(--text-main);
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            background-color: #262b3d;
+            border-color: var(--text-muted);
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            flex-grow: 1;
+            height: 16px;
+            background: #1a1d28;
+            border-radius: 8px;
+            outline: none;
+            margin: 0 8px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 4px;
+            border-top: 1px solid var(--border);
+        }
+
+        .metric-item {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-top: 1px;
+        }
+
+        .metric-value.accent {
+            color: var(--accent);
+        }
+
+        /* 2段目：各リスト（Active Nodes と Topic Streams） */
+        .middle-section {
+            height: 130px;
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        /* スクロールを有効にするための修正 */
+        .scroll-list-container {
+            background: #0d0f17;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            flex-grow: 1;
+            overflow-y: auto; /* ここで確実にスクロールさせる */
+            min-height: 0;
+        }
+
+        .scroll-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .scroll-list li {
+            padding: 4px 8px;
+            border-bottom: 1px solid var(--border);
+            font-family: ui-monospace, monospace;
+            font-size: 10.5px;
+            cursor: pointer;
+            word-break: break-all;
+            transition: background 0.1s;
+        }
+
+        .scroll-list li:hover {
+            background-color: #1a1d28;
+            color: var(--accent);
+        }
+
+        .scroll-list li.selected {
+            background-color: var(--accent-glow);
+            color: var(--accent);
+            border-left: 3px solid var(--accent);
+            font-weight: 600;
+        }
+
+        .scroll-list li:last-child {
+            border-bottom: none;
+        }
+
+        /* 3段目：トピックの中身 */
+        .bottom-section {
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        .payload-box {
+            background: #0d0f17;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-family: ui-monospace, monospace;
+            font-size: 10.5px;
+            overflow-y: auto;
+            word-break: break-all;
+            color: var(--success);
+            box-sizing: border-box;
+            flex-grow: 1;
+            min-height: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>ROS2 Control Terminal</h2>
+        <div id="status"><span class="dot"></span>Disconnected</div>
+    </header>
+    
+    <div class="dashboard-container">
+        <!-- 1段目：スライダーコントロール -->
+        <div class="card top-section">
+            <div class="card-title">Speed Control</div>
+            
+            <div class="control-row">
+                <div class="button-group">
+                    <button onclick="changeValue(-10)">-10</button>
+                    <button onclick="changeValue(-5)">-5</button>
+                    <button onclick="changeValue(-1)">-1</button>
+                </div>
+
+                <input id="slider" type="range" min="0" max="100" value="50">
+
+                <div class="button-group">
+                    <button onclick="changeValue(1)">+1</button>
+                    <button onclick="changeValue(5)">+5</button>
+                    <button onclick="changeValue(10)">+10</button>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    設定値
+                    <div class="metric-value"><span id="value">50</span> %</div>
+                </div>
+                <div class="metric-item">
+                    目標回転数
+                    <div class="metric-value accent"><span id="rpm-target">1600.0</span> RPM</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2段目：各リスト -->
+        <div class="middle-section">
+            <div class="card">
+                <div class="card-title">Active Nodes</div>
+                <div class="scroll-list-container" id="nodes-container">
+                    <ul id="all-nodes-list" class="scroll-list">
+                        <li>Scanning nodes...</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Topic Streams (Click to Monitor)</div>
+                <div class="scroll-list-container" id="topics-container">
+                    <ul id="all-topics-list" class="scroll-list">
+                        <li>Scanning topics...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3段目：トピックの中身 -->
+        <div class="card bottom-section">
+            <div class="card-title">Payload Monitor // <span id="selected-topic-name" style="color:var(--accent);">None</span></div>
+            <div id="topic-payload" class="payload-box">トピックを選択してください</div>
+        </div>
+    </div>
+
+<script>
+const slider = document.getElementById("slider");
+const value  = document.getElementById("value");
+const rpmTarget = document.getElementById("rpm-target");
+const status = document.getElementById("status");
+const allNodesList = document.getElementById("all-nodes-list");
+const allTopicsList = document.getElementById("all-topics-list");
+const nodesContainer = document.getElementById("nodes-container");
+const topicsContainer = document.getElementById("topics-container");
+const selectedTopicNameSpan = document.getElementById("selected-topic-name");
+const topicPayloadDiv = document.getElementById("topic-payload");
+
+const MAX_RPM = 3200.0;
+let currentSub = null;
+let selectedTopicName = "";
+
+const ros = new ROSLIB.Ros({
+    url: "ws://100.84.147.43:9090"
+});
+
+ros.on("connection", function () {
+    status.innerHTML = '<span class="dot" style="background-color: var(--success); box-shadow: 0 0 6px var(--success);"></span>Connected';
+});
+
+ros.on("error", function () {
+    status.innerHTML = '<span class="dot" style="background-color: #f87171;"></span>Error';
+});
+
+ros.on("close", function () {
+    status.innerHTML = '<span class="dot" style="background-color: var(--text-muted);"></span>Disconnected';
+    allNodesList.innerHTML = "<li>Disconnected</li>";
+    allTopicsList.innerHTML = "<li>Disconnected</li>";
+});
+
+setInterval(function () {
+    if (!ros.isConnected) return;
+
+    // Active Nodes の更新（スクロール位置保持）
+    ros.getNodes(function (nodes) {
+        let scrollPos = nodesContainer.scrollTop;
+        allNodesList.innerHTML = "";
+        if (nodes && nodes.length > 0) {
+            nodes.forEach(function (nodeName) {
+                let li = document.createElement("li");
+                li.textContent = nodeName;
+                allNodesList.appendChild(li);
+            });
+        } else {
+            allNodesList.innerHTML = "<li>No nodes found</li>";
+        }
+        nodesContainer.scrollTop = scrollPos;
+    });
+
+    // Topic Streams の更新（スクロール位置保持）
+    ros.getTopics(function (response) {
+        let topics = response.topics;
+        let scrollPos = topicsContainer.scrollTop;
+        allTopicsList.innerHTML = "";
+        
+        if (topics && topics.length > 0) {
+            topics.forEach(function (topicName) {
+                let li = document.createElement("li");
+                li.textContent = topicName;
+                
+                if (topicName === selectedTopicName) {
+                    li.className = "selected";
+                }
+
+                li.onclick = function () {
+                    subscribeToTopic(topicName);
+                };
+
+                allTopicsList.appendChild(li);
+            });
+        } else {
+            allTopicsList.innerHTML = "<li>No topics found</li>";
+        }
+        topicsContainer.scrollTop = scrollPos;
+    });
+}, 2000);
+
+function subscribeToTopic(topicName) {
+    if (currentSub) {
+        currentSub.unsubscribe();
+    }
+
+    selectedTopicName = topicName;
+    selectedTopicNameSpan.textContent = topicName;
+    topicPayloadDiv.textContent = "Waiting for messages...";
+
+    let items = allTopicsList.getElementsByTagName("li");
+    for (let item of items) {
+        if (item.textContent === topicName) {
+            item.className = "selected";
+        } else {
+            item.className = "";
+        }
+    }
+
+    currentSub = new ROSLIB.Topic({
+        ros: ros,
+        name: topicName
+    });
+
+    currentSub.subscribe(function (message) {
+        topicPayloadDiv.textContent = JSON.stringify(message, null, 2);
+    });
+}
+
+const pubSlider = new ROSLIB.Topic({
+    ros: ros,
+    name: "/slider_value",
+    messageType: "std_msgs/msg/Float32"
+});
+
+function updateAndPublish(newValue) {
+    newValue = Math.max(0, Math.min(100, newValue));
+
+    slider.value = newValue;
+    value.textContent = newValue;
+
+    let calculatedRpm = newValue * (MAX_RPM / 100.0);
+    rpmTarget.textContent = calculatedRpm.toFixed(1);
+
+    pubSlider.publish(new ROSLIB.Message({
+        data: parseFloat(newValue)
+    }));
+}
+
+slider.oninput = function () {
+    updateAndPublish(parseInt(slider.value));
+};
+
+function changeValue(amount) {
+    let currentVal = parseInt(slider.value);
+    updateAndPublish(currentVal + amount);
+}
+</script>
+
+</body>
+</html>
